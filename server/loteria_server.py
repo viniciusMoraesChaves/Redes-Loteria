@@ -1,5 +1,8 @@
 import socket
 import threading
+import random
+
+from matplotlib.pylab import number
 
 HOST = '0.0.0.0'
 PORT = 5000
@@ -9,6 +12,11 @@ def think(line, state, lock)
 
 #essa função aqui precisa gerar um número aleatório pro sorteio e enviar o resultado
 def random_number(conn, state, lock):
+    ##função so sorteia os 5 numeros e manda, fazer a parte dos acertos, tratamento do estado dps
+    correctNumbers = random.sample(range(1, 101), 5)
+    sorteados_str = "[" + "|".join(str(n) for n in correctNumbers) + "]"
+    conn.sendall(f'Os Números sorteados foram: {sorteados_str}\n'.encode())   
+
 
 #essa função precisa receber a conexão e o endereço do cliente
 def handle_client(conn, addr):
@@ -27,5 +35,5 @@ def main():
         thread.start()
 
 
-if __name__ == '__main__':  
+if __name__ == '__main__':
     main()
