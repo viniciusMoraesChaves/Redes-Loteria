@@ -1,4 +1,7 @@
-import socket, threading, random, datetime, time
+import socket, threading, random, datetime, time, sys, os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from helpers import RED, GREEN, YELLOW, RESET
 
 HOST = '0.0.0.0'
 PORT = 5000
@@ -75,21 +78,21 @@ def thread_numeros(conn, state, lock):
         sorteados_str = "[" + "|".join(str(n) for n in correctNumbers) + "]"
 
         try:
-            conn.sendall(f'[SORTEIO]: {sorteados_str}\n'.encode())
+            conn.sendall(f'{GREEN}[SORTEIO]{RESET}: {sorteados_str}\n'.encode())
 
             # aqui é feita a verificação de acertos do usuário
             for aposta in apostas:
                 acertos = [n for n in aposta if n in correctNumbers]
                 acertos_str = "[" + "|".join(str(n) for n in acertos) + "]"
                 aposta_str = "[" + "|".join(str(n) for n in aposta) + "]"
-                conn.sendall(f'Aposta {aposta_str} -> Acertos: {acertos_str}\n'.encode())
+                conn.sendall(f'{YELLOW}[SUA APOSTA]{RESET} : {aposta_str} -> Acertos: {acertos_str}\n'.encode())
         except OSError:
             return  
 
 
 #essa função precisa receber a conexão e o endereço do cliente
 def handle_client(conn, addr):
-    print(f"[NOVA CONEXAO] {addr} conectado.")
+    print(f"{GREEN}[NOVA CONEXAO]{RESET} {addr} conectado.")
  
     horario = datetime.datetime.now().strftime("%H:%M:%S")
     conn.sendall(f"{horario}: CONECTADO!!\n".encode())
@@ -114,7 +117,7 @@ def handle_client(conn, addr):
     t2.join()
  
     conn.close()
-    print(f"[DESCONECTADO] {addr}")
+    print(f"{RED}[DESCONECTADO]{RESET} {addr}")
 
 
 def main():
@@ -122,7 +125,7 @@ def main():
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
     server.listen()
-    print(f'[LISTENING] Servidor rodando em [{HOST}:{PORT}]')
+    print(f'{GREEN}[LISTENING]{RESET} Servidor rodando em [{HOST}:{PORT}]')
 
     while True:
         conn, addr = server.accept()
