@@ -8,7 +8,7 @@ aplicações em rede no modelo client/server e ainda utilizar conhecimentos em:
 
 ### Como utilizar
 1. em um terminal: ` cd server `
-2. `  `
+2. ` python3 loteria_server.py `
 3. em outro terminal: ` cd client `
 4. ` pyhon3 loteria_client.py`
 
