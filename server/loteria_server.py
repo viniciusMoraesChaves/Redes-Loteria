@@ -6,6 +6,9 @@ from helpers import RED, GREEN, YELLOW, RESET
 HOST = '0.0.0.0'
 PORT = 5000
 
+clientes_ativos = 0
+lock_vagas = threading.Lock()
+
 # entende o comando digitado pelo usuário
 def think(line, state, lock):
     line = line.strip()
@@ -92,46 +95,78 @@ def thread_numeros(conn, state, lock):
 
 #essa função precisa receber a conexão e o endereço do cliente
 def handle_client(conn, addr):
+    global clientes_ativos
+
     print(f"{GREEN}[NOVA CONEXAO]{RESET} {addr} conectado.")
- 
-    horario = datetime.datetime.now().strftime("%H:%M:%S")
-    conn.sendall(f"{horario}: CONECTADO!!\n".encode())
- 
-    # "Memória compartilhada" entre a thread 1 e a thread 2 desta conexão
-    estado = {
-        "inicio": 0,
-        "fim": 100,
-        "qtd": 5,
-        "apostas": [],
-        "ativo": True,
-    }
-    lock = threading.Lock()
- 
-    t1 = threading.Thread(target=thread_recebe_comandos, args=(conn, estado, lock))
-    t2 = threading.Thread(target=thread_numeros, args=(conn, estado, lock))
- 
-    t1.start()
-    t2.start()
- 
-    t1.join()
-    t2.join()
- 
-    conn.close()
-    print(f"{RED}[DESCONECTADO]{RESET} {addr}")
+
+    try:
+        horario = datetime.datetime.now().strftime("%H:%M:%S")
+        conn.sendall(f"{horario}: CONECTADO!!\n".encode())
+    
+        # "Memória compartilhada" entre a thread 1 e a thread 2 desta conexão
+        estado = {
+            "inicio": 0,
+            "fim": 100,
+            "qtd": 5,
+            "apostas": [],
+            "ativo": True,
+        }
+        lock = threading.Lock()
+    
+        t1 = threading.Thread(target=thread_recebe_comandos, args=(conn, estado, lock))
+        t2 = threading.Thread(target=thread_numeros, args=(conn, estado, lock))
+    
+        t1.start()
+        t2.start()
+    
+        t1.join()
+        t2.join()
+    finally:
+        conn.close()
+        with lock_vagas:
+            clientes_ativos -= 1
+
+        print(f"{RED}[DESCONECTADO]{RESET} {addr}. Vaga liberada! Clientes agora: {clientes_ativos}")
 
 
 def main():
+    global clientes_ativos
+    
+    # 1. Valida se o usuário passou o limite por argumento (ex: python loteria_server.py 2)
+    if len(sys.argv) < 2:
+        print("Uso correto: python loteria_server.py <limite_de_clientes>")
+        sys.exit(1)
+        
+    try:
+        limite_maximo = int(sys.argv[1])
+    except ValueError:
+        print("Erro: O limite de clientes deve ser um número inteiro.")
+        sys.exit(1)
+
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
     server.listen()
-    print(f'{GREEN}[LISTENING]{RESET} Servidor rodando em [{HOST}:{PORT}]')
+    print(f'{GREEN}[LISTENING]{RESET} Servidor rodando em [{HOST}:{PORT}] com limite de {limite_maximo} clientes')
 
     while True:
         conn, addr = server.accept()
+        
+        # O lock protege a checagem e o incremento do contador de vagas
+        with lock_vagas:
+            if clientes_ativos >= limite_maximo:
+                print(f"{YELLOW}[RECUSADO]{RESET} Conexão de {addr} recusada (Servidor lotado).")
+                conn.sendall(b"Servidor lotado. Tente novamente mais tarde.\n")
+                conn.close()
+                continue # Pula para a próxima conexão sem iniciar thread
+            else:
+                clientes_ativos += 1
+                print(f"[DEBUG] Vaga ocupada. Clientes ativos: {clientes_ativos}/{limite_maximo}")
+                
+        # Cria e inicia a thread apenas se passou da checagem e tem vaga
         thread = threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
 
-
 if __name__ == '__main__':
     main()
+
