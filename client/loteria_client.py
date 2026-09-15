@@ -1,5 +1,6 @@
 import socket
 import threading
+import os
 
 HOST = '127.0.0.1'
 PORT = 5000
@@ -24,7 +25,7 @@ def receive_data(sock):
     buffer = ""
     while True:
         try:
-            data = sock.recv(1024)                      # limita a quantidade de bytes recebidos
+            data = sock.recv(1024)                    # limita a quantidade de bytes recebidos
             if not data:
                 print("[DESCONECTADO DO SERVIDOR]")
                 break
@@ -33,6 +34,12 @@ def receive_data(sock):
                 linha, buffer = buffer.split("\n", 1)
                 if linha.strip():                       # remove espaços em branco
                     print(f"\n{linha}")
+                    
+                    # SE O SERVIDOR LOTOU, ENCERRA O CLIENTE AQUI MESMO!
+                    if "lotado" in linha.lower():
+                        sock.close()
+                        os._exit(0)
+                        
         except OSError:
             break
 
