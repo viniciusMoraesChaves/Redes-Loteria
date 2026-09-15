@@ -142,6 +142,19 @@ def handle_client(conn, addr):
 
 
 def main():
+    if len(sys.argv) != 2: #verifica se o usuário passou o limite de clientes como argumento
+        print(f"{RED}[ERRO]{RESET} Uso correto: python loteria_server.py <limite_de_clientes>")
+        sys.exit(1)
+    try:
+        limite_clientes = int(sys.argv[1]) 
+        if limite_clientes <= 0: #verifica se o limite de clientes é maior que zero
+            print(f"{RED}[ERRO]{RESET} O limite deve ser um número maior que zero.")
+            sys.exit(1)
+    except ValueError: #verifica se o limite de clientes é um número inteiro
+        print(f"{RED}[ERRO]{RESET} O limite de clientes deve ser um número inteiro.")
+        sys.exit(1)
+
+    print(f"{GREEN}[INFO]{RESET} Servidor configurado para limite de {limite_clientes} clientes.") 
     global MAX_CLIENTES
     parser = argparse.ArgumentParser()
     parser.add_argument('--max-clientes', type=int, default=5)
