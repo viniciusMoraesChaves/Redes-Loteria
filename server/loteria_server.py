@@ -1,4 +1,4 @@
-import socket, threading, random, datetime, time, sys, os
+import socket, threading, random, datetime, time, sys, os, argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import RED, GREEN, YELLOW, RESET
@@ -6,8 +6,9 @@ from helpers import RED, GREEN, YELLOW, RESET
 HOST = '0.0.0.0'
 PORT = 5000
 
-clientes_ativos = 0
-lock_vagas = threading.Lock()
+clientes_lock = threading.Lock()
+clientes_conectados = 0
+MAX_CLIENTES = 5
 
 # entende o comando digitado pelo usuário
 def think(line, state, lock):
@@ -95,53 +96,70 @@ def thread_numeros(conn, state, lock):
 
 #essa função precisa receber a conexão e o endereço do cliente
 def handle_client(conn, addr):
-    global clientes_ativos
+    global clientes_conectados
+
+    with clientes_lock:
+        if clientes_conectados >= MAX_CLIENTES:
+            try:
+                conn.sendall(f"{RED}SERVIDOR LOTADO! {RESET}Tente novamente mais tarde.\n".encode())
+            except OSError:
+                pass
+            conn.close()
+            print(f"{RED}[RECUSADO]{RESET} {addr} - limite atingido.")
+            return
+        clientes_conectados += 1
 
     print(f"{GREEN}[NOVA CONEXAO]{RESET} {addr} conectado.")
+ 
+    horario = datetime.datetime.now().strftime("%H:%M:%S")
+    conn.sendall(f"{horario}: CONECTADO!!\n".encode())
+ 
+    # "Memória compartilhada" entre a thread 1 e a thread 2 desta conexão
+    estado = {
+        "inicio": 0,
+        "fim": 100,
+        "qtd": 5,
+        "apostas": [],
+        "ativo": True,
+    }
+    lock = threading.Lock()
+ 
+    t1 = threading.Thread(target=thread_recebe_comandos, args=(conn, estado, lock))
+    t2 = threading.Thread(target=thread_numeros, args=(conn, estado, lock))
+ 
+    t1.start()
+    t2.start()
+ 
+    t1.join()
+    t2.join()
 
-    try:
-        horario = datetime.datetime.now().strftime("%H:%M:%S")
-        conn.sendall(f"{horario}: CONECTADO!!\n".encode())
-    
-        # "Memória compartilhada" entre a thread 1 e a thread 2 desta conexão
-        estado = {
-            "inicio": 0,
-            "fim": 100,
-            "qtd": 5,
-            "apostas": [],
-            "ativo": True,
-        }
-        lock = threading.Lock()
-    
-        t1 = threading.Thread(target=thread_recebe_comandos, args=(conn, estado, lock))
-        t2 = threading.Thread(target=thread_numeros, args=(conn, estado, lock))
-    
-        t1.start()
-        t2.start()
-    
-        t1.join()
-        t2.join()
-    finally:
-        conn.close()
-        with lock_vagas:
-            clientes_ativos -= 1
+    conn.close()
+    with clientes_lock:
+        clientes_conectados -= 1
 
-        print(f"{RED}[DESCONECTADO]{RESET} {addr}. Vaga liberada! Clientes agora: {clientes_ativos}")
+    
+    print(f"{RED}[DESCONECTADO]{RESET} {addr}({clientes_conectados}/{MAX_CLIENTES})")
 
 
 def main():
-    global clientes_ativos
-    
-    # 1. Valida se o usuário passou o limite por argumento (ex: python loteria_server.py 2)
-    if len(sys.argv) < 2:
-        print("Uso correto: python loteria_server.py <limite_de_clientes>")
+    if len(sys.argv) != 2: #verifica se o usuário passou o limite de clientes como argumento
+        print(f"{RED}[ERRO]{RESET} Uso correto: python loteria_server.py <limite_de_clientes>")
         sys.exit(1)
-        
     try:
-        limite_maximo = int(sys.argv[1])
-    except ValueError:
-        print("Erro: O limite de clientes deve ser um número inteiro.")
+        limite_clientes = int(sys.argv[1]) 
+        if limite_clientes <= 0: #verifica se o limite de clientes é maior que zero
+            print(f"{RED}[ERRO]{RESET} O limite deve ser um número maior que zero.")
+            sys.exit(1)
+    except ValueError: #verifica se o limite de clientes é um número inteiro
+        print(f"{RED}[ERRO]{RESET} O limite de clientes deve ser um número inteiro.")
         sys.exit(1)
+
+    print(f"{GREEN}[INFO]{RESET} Servidor configurado para limite de {limite_clientes} clientes.") 
+    global MAX_CLIENTES
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max-clientes', type=int, default=5)
+    args = parser.parse_args()
+    MAX_CLIENTES = args.max_clientes
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
