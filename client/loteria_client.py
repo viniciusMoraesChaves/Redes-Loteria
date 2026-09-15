@@ -1,6 +1,4 @@
-import socket
-import threading
-import os
+import socket, threading, os
 
 HOST = '127.0.0.1'
 PORT = 5000
@@ -18,6 +16,9 @@ def send_data(sock):
             print(f"[ENVIADO] {message}")
         except OSError as e:
             print(f"Erro ao enviar dados: {e}")
+            break
+        if message.strip().lower() == ":sair":
+            print("[DESCONECTANDO] Encerrando conexão...")
             break
 
 # referente a Thread 2 que vai ler e imprimir na tela
@@ -49,6 +50,7 @@ def main():
     sock.connect((HOST, PORT))
 
     print("[CONFIGURACAO] :inicio <N>, :fim <N>, :qtd <N>")
+    print("[USO] :sair ; para encerrar a conexão.")
     print("[APOSTAR] números separados por espaço.\n")
 
     msg1 = sock.recv(1024).decode()
