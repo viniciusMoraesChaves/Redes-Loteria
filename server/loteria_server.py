@@ -1,3 +1,4 @@
+from ast import Try
 import socket, threading, random, datetime, time, sys, os, argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -110,7 +111,7 @@ def handle_client(conn, addr):
         clientes_conectados += 1
 
     print(f"{GREEN}[NOVA CONEXAO]{RESET} {addr} conectado.")
- 
+    try:
     horario = datetime.datetime.now().strftime("%H:%M:%S")
     conn.sendall(f"{horario}: CONECTADO!!\n".encode())
  
@@ -134,6 +135,7 @@ def handle_client(conn, addr):
     t2.join()
 
     conn.close()
+    finally:
     with clientes_lock:
         clientes_conectados -= 1
 
@@ -159,7 +161,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--max-clientes', type=int, default=5)
     args = parser.parse_args()
-    MAX_CLIENTES = args.max_clientes
+    MAX_CLIENTES = limite_clientes
+
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
