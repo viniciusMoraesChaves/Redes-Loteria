@@ -18,3 +18,11 @@ aplicações em rede no modelo client/server e ainda utilizar conhecimentos em:
 | `python3 loteria_server.py` | run server file |
 | `cd client` | enter in the folder client |
 | `python3 loteria_client.py`| run client file |
+
+
+| Nome | RA |
+| --- | --- |
+| Vinícius de Moraes Chaves | 24007303 |
+| Ramon Batista Soares |  |
+| Rafael Monezi Prado | 23005030 |
+| Felipe Cantarin Guglieminetti |  |
