@@ -165,13 +165,26 @@ def main():
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
     server.listen()
-    print(f'{GREEN}[LISTENING]{RESET} Servidor rodando em [{HOST}:{PORT}]')
+    print(f'{GREEN}[LISTENING]{RESET} Servidor rodando em [{HOST}:{PORT}] com limite de {limite_maximo} clientes')
 
     while True:
         conn, addr = server.accept()
+        
+        # O lock protege a checagem e o incremento do contador de vagas
+        with lock_vagas:
+            if clientes_ativos >= limite_maximo:
+                print(f"{YELLOW}[RECUSADO]{RESET} Conexão de {addr} recusada (Servidor lotado).")
+                conn.sendall(b"Servidor lotado. Tente novamente mais tarde.\n")
+                conn.close()
+                continue # Pula para a próxima conexão sem iniciar thread
+            else:
+                clientes_ativos += 1
+                print(f"[DEBUG] Vaga ocupada. Clientes ativos: {clientes_ativos}/{limite_maximo}")
+                
+        # Cria e inicia a thread apenas se passou da checagem e tem vaga
         thread = threading.Thread(target=handle_client, args=(conn, addr))
         thread.start()
 
-
 if __name__ == '__main__':
     main()
+
