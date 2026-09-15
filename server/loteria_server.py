@@ -1,10 +1,14 @@
-import socket, threading, random, datetime, time, sys, os
+import socket, threading, random, datetime, time, sys, os, argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import RED, GREEN, YELLOW, RESET
 
 HOST = '0.0.0.0'
 PORT = 5000
+
+clientes_lock = threading.Lock()
+clientes_conectados = 0
+MAX_CLIENTES = 5
 
 # entende o comando digitado pelo usuário
 def think(line, state, lock):
@@ -92,6 +96,19 @@ def thread_numeros(conn, state, lock):
 
 #essa função precisa receber a conexão e o endereço do cliente
 def handle_client(conn, addr):
+    global clientes_conectados
+
+    with clientes_lock:
+        if clientes_conectados >= MAX_CLIENTES:
+            try:
+                conn.sendall(f"{RED}SERVIDOR LOTADO! {RESET}Tente novamente mais tarde.\n".encode())
+            except OSError:
+                pass
+            conn.close()
+            print(f"{RED}[RECUSADO]{RESET} {addr} - limite atingido.")
+            return
+        clientes_conectados += 1
+
     print(f"{GREEN}[NOVA CONEXAO]{RESET} {addr} conectado.")
  
     horario = datetime.datetime.now().strftime("%H:%M:%S")
@@ -115,9 +132,13 @@ def handle_client(conn, addr):
  
     t1.join()
     t2.join()
- 
+
     conn.close()
-    print(f"{RED}[DESCONECTADO]{RESET} {addr}")
+    with clientes_lock:
+        clientes_conectados -= 1
+
+    
+    print(f"{RED}[DESCONECTADO]{RESET} {addr}({clientes_conectados}/{MAX_CLIENTES})")
 
 
 def main():
@@ -134,6 +155,12 @@ def main():
         sys.exit(1)
 
     print(f"{GREEN}[INFO]{RESET} Servidor configurado para limite de {limite_clientes} clientes.") 
+    global MAX_CLIENTES
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--max-clientes', type=int, default=5)
+    args = parser.parse_args()
+    MAX_CLIENTES = args.max_clientes
+
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))
