@@ -1,5 +1,4 @@
-from ast import Try
-import socket, threading, random, datetime, time, sys, os, argparse
+import socket, threading, random, datetime, time, sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from helpers import RED, GREEN, YELLOW, RESET
@@ -12,13 +11,23 @@ clientes_conectados = 0
 MAX_CLIENTES = 5
 
 # entende o comando digitado pelo usuário
-def think(line, state, lock):
+def think(line, state, lock, conn):
     line = line.strip()
     if not line:
         return
  
     if line.startswith(":"):
         parts = line[1:].split()
+
+        if len(parts) == 1 and parts[0].lower() == "sair":
+            with lock:
+                state["ativo"] = False
+            try:
+                conn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            return
+
         if len(parts) == 2:
             cmd, value = parts[0].lower(), parts[1]
             try:
@@ -51,7 +60,7 @@ def thread_recebe_comandos(conn, state, lock):
             buffer += data.decode(errors="ignore")
             while "\n" in buffer:
                 line, buffer = buffer.split("\n", 1)
-                think(line, state, lock)
+                think(line, state, lock, conn)
         except OSError:
             break
  
