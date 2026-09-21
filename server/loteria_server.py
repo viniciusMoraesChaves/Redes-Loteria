@@ -34,13 +34,43 @@ def think(line, state, lock, conn):
                 value = int(value)
             except ValueError:
                 return
+            
             with lock:
+                novo_inicio = state["inicio"]
+                novo_fim = state["fim"]
+                novo_qtd = state["qtd"]
+
                 if cmd == "inicio":
-                    state["inicio"] = value
+                    novo_inicio = value
                 elif cmd == "fim":
-                    state["fim"] = value
+                    novo_fim = value
                 elif cmd == "qtd":
-                    state["qtd"] = value
+                    if value <= 0:
+                        return
+                    novo_qtd = value
+                else:
+                    return  # comando desconhecido
+                
+            #validação do input de configuração recebido pelo usuário
+            if novo_fim < novo_inicio:
+                try:
+                    conn.sendall(f"{RED}[ERRO]{RESET} O valor de :fim deve ser maior ou igual a :inicio.\n".encode())
+                except OSError:
+                    pass
+                return
+            
+            if novo_qtd > (novo_fim - novo_inicio + 1):
+                try:
+                    conn.sendall(f"{RED}[ERRO]{RESET} O valor de :qtd deve caber no intervalo selecionado.\n".encode())
+                except OSError:
+                    pass
+                return
+            
+            with lock:
+                state["inicio"] = novo_inicio
+                state["fim"] = novo_fim
+                state["qtd"] = novo_qtd
+        
     else:
         try:
             nums = [int(x) for x in line.split()]
@@ -87,6 +117,14 @@ def thread_numeros(conn, state, lock):
             apostas = state["apostas"][:]
             state["apostas"] = []
 
+        # validação caso algo tenha mudado na configuração do sorteio, como :inicio, :fim ou :qtd
+        if fim < inicio or qtd <= 0 or qtd > (fim - inicio + 1):
+            try:
+                conn.sendall(f"{RED}[SORTEIO CANCELADO]{RESET} Configuração inválida.\n".encode())
+            except OSError:
+                pass
+            continue
+
         # formatação dos números sorteados
         correctNumbers = random.sample(range(inicio, fim + 1), qtd)
         sorteados_str = "[" + "|".join(str(n) for n in correctNumbers) + "]"
@@ -114,12 +152,16 @@ def handle_client(conn, addr):
                 conn.sendall(f"{RED}SERVIDOR LOTADO! {RESET}Tente novamente mais tarde.\n".encode())
             except OSError:
                 pass
-            conn.close()
+            try:
+                conn.close()
+            except OSError:
+                pass
             print(f"{RED}[RECUSADO]{RESET} {addr} - limite atingido.")
             return
         clientes_conectados += 1
 
     print(f"{GREEN}[NOVA CONEXAO]{RESET} {addr} conectado.")
+
     try:
         horario = datetime.datetime.now().strftime("%H:%M:%S")
         conn.sendall(f"{horario}: CONECTADO!!\n".encode())
@@ -142,11 +184,13 @@ def handle_client(conn, addr):
 
         t1.join()
         t2.join()
-    finally:
+
         conn.close()
+    finally:
         with clientes_lock:
             clientes_conectados -= 1
 
+    
     print(f"{RED}[DESCONECTADO]{RESET} {addr}({clientes_conectados}/{MAX_CLIENTES})")
 
 
@@ -174,9 +218,21 @@ def main():
     print(f'{GREEN}[LISTENING]{RESET} Servidor rodando em [{HOST}:{PORT}] com limite de {MAX_CLIENTES} clientes')
 
     while True:
-        conn, addr = server.accept()
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
-        thread.start()
+        try:
+            conn, addr = server.accept()
+        except OSError as e:
+            print(f"{RED}[ERRO ACCEPT]{RESET} {e}")
+            continue
+
+        try:
+            thread = threading.Thread(target=handle_client, args=(conn, addr))
+            thread.start()
+        except Exception as e:
+            print(f"{RED}[ERRO AO CRIAR THREAD]{RESET} {addr}: {e}")
+            try:
+                conn.close()
+            except OSError:
+                pass
 
 if __name__ == '__main__':
     main()
