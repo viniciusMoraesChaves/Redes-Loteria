@@ -1,6 +1,4 @@
-import socket
-import threading
-import os
+import socket, threading, os
 
 HOST = '127.0.0.1'
 PORT = 5000
@@ -55,12 +53,34 @@ def receive_data(sock):
 
 def main():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((HOST, PORT))
+    try:
+        sock.connect((HOST, PORT))
+    except ConnectionRefusedError:
+        print("[ERRO] Conexão recusada. O servidor está rodando?")
+        sock.close()
+        return
+    except OSError as e:
+        print(f"[ERRO] Falha ao conectar: {e}")
+        sock.close()
+        return
 
     print("[CONFIGURACAO] :inicio <N>, :fim <N>, :qtd <N>")
+    print("[USO] :sair ; para encerrar a conexão.")
     print("[APOSTAR] números separados por espaço.\n")
+    
 
-    msg1 = sock.recv(1024).decode()
+    try:
+        data = sock.recv(1024)
+        if not data:
+            print("[DESCONECTADO] Servidor fechou a conexão antes de responder.")
+            sock.close()
+            return
+        msg1 = data.decode(errors="ignore")
+    except OSError as e:
+        print(f"[ERRO] Falha ao receber dados do servidor: {e}")
+        sock.close()
+        return
+
     print(msg1.strip())
 
     tread2 = threading.Thread(target=receive_data, args=(sock,), daemon=True)
