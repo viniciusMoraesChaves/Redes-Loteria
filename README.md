@@ -25,4 +25,4 @@ aplicações em rede no modelo client/server e ainda utilizar conhecimentos em:
 | Vinícius de Moraes Chaves | 24007303 |
 | Ramon Batista Soares | 24787061 |
 | Rafael Monezi Prado | 23005030 |
-| Felipe Cantarin Guglieminetti |  |
+| Felipe Cantarin Guglieminetti | 24012979 |
