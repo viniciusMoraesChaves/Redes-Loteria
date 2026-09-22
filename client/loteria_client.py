@@ -10,15 +10,18 @@ def send_data(sock):
     while True:
         try:
             message = input("Digite sua mensagem: ")
-        except EOFError:
-            print("EOFError: Encerrando envio de dados.")
-            break
+
+        except (EOFError, KeyboardInterrupt):
+            print("\n[ENCERRANDO] Conexão encerrada pelo usuário.")
+            sock.close()
+            os._exit(0) 
         try:
             sock.sendall((message + '\n').encode())
             print(f"[ENVIADO] {message}")
         except OSError as e:
-            print(f"Erro ao enviar dados: {e}")
-            break
+           print(f"\n[ERRO] Falha ao enviar dados: {e}")
+           sock.close()
+           os._exit(0)
 
 # referente a Thread 2 que vai ler e imprimir na tela
 def receive_data(sock):
@@ -28,7 +31,10 @@ def receive_data(sock):
             data = sock.recv(1024)                    # limita a quantidade de bytes recebidos
             if not data:
                 print("[DESCONECTADO DO SERVIDOR]")
-                break
+                sock.close()
+                # Encerra totalmente o processo se o servidor cair, não fica preso no input
+                os._exit(0)
+
             buffer += data.decode(errors="ignore")      # adiciona os dados recebidos ao buffer
             while "\n" in buffer:                       # verifica se tem uma linha completa no buffer
                 linha, buffer = buffer.split("\n", 1)
@@ -41,7 +47,10 @@ def receive_data(sock):
                         os._exit(0)
                         
         except OSError:
-            break
+            print("\n[DESCONECTADO] A conexão com o servidor foi perdida.")
+            sock.close()
+            #Encerra totalmente o processo em caso de erro na conexão
+            os._exit(0)
 
 
 def main():
